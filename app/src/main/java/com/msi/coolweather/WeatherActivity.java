@@ -1,5 +1,6 @@
 package com.msi.coolweather;
 
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.drawable.Drawable;
 import android.icu.util.Calendar;
@@ -78,7 +79,7 @@ public class WeatherActivity extends AppCompatActivity {
 
         initWidget();
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-        //调出之前保存的数据
+
         String weatherString = prefs.getString("weather",null);    //天气数据
         String airString     = prefs.getString("air",null);        //空气数据
         String bingPic       = prefs.getString("pic",null);        //图片数据
@@ -91,6 +92,9 @@ public class WeatherActivity extends AppCompatActivity {
         }else {
             //没缓存去服务器查询天气
             weatherId = getIntent().getStringExtra("weather_id");
+            SharedPreferences.Editor editor = PreferenceManager.getDefaultSharedPreferences(WeatherActivity.this).edit();
+            editor.putString("weather_id",weatherId);
+            editor.apply();
             weatherLayout.setVisibility(View.INVISIBLE);
             requestWeather_Air(weatherId);
         }
@@ -215,6 +219,13 @@ public class WeatherActivity extends AppCompatActivity {
      * 处理并展示Weather实体类信息
      */
     private void showWeatherInfo(Weather weather,Air air){
+        //启动8小时后的定时服务
+        if(weather != null && "ok".equals(weather.status)){
+            Intent intent = new Intent(this,AutoUpdateService.class);
+        }else{
+            Toast.makeText(WeatherActivity.this,"获取天气信息失败",Toast.LENGTH_SHORT).show();
+        }
+
         Log.d("aa","showWeatherInfo");
         Log.d("aa","showWeatherInfo" + weather.basic.location);
         String cityName = weather.basic.location;
@@ -274,5 +285,9 @@ public class WeatherActivity extends AppCompatActivity {
 
     public String getWeatherId() {
         return weatherId;
+    }
+    @Override
+    protected void onDestroy(){
+        super.onDestroy();
     }
 }

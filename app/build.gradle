@@ -1,6 +1,14 @@
 apply plugin: 'com.android.application'
 
 android {
+    signingConfigs {
+        key0 {
+            keyAlias 'key0'
+            keyPassword 'wei5808568'
+            storeFile file('C:/Users/MSI/Desktop/key2018-12-24.jks')
+            storePassword 'wei5808568'
+        }
+    }
     compileSdkVersion 26
     defaultConfig {
         applicationId "com.msi.coolweather"
@@ -21,7 +29,7 @@ configurations.all {
     resolutionStrategy.force 'com.android.support:support-annotations:26.1.0'
 }
 dependencies {
-    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation 'com.android.support:appcompat-v7:26.1.0'
     implementation 'com.android.support.constraint:constraint-layout:1.1.3'
     implementation 'org.litepal.android:core:1.3.2'

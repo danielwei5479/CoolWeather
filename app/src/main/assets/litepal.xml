@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<lite>
+    <dbname value="coolweather"/>
+    <version value="1"/>
+    <list>
+        <mapping class="com.msi.coolweather.db.Province"/>
+        <mapping class="com.msi.coolweather.db.City"/>
+        <mapping class="com.msi.coolweather.db.County"/>
+    </list>
+</lite>

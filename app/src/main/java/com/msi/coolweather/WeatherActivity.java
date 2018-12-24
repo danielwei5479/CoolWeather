@@ -51,6 +51,7 @@ public class WeatherActivity extends AppCompatActivity {
     private Air     air;
     private ImageView bingPicImg;
     //修复一些BUG
+    //修复一些BUG
     @Override
     protected void onCreate(Bundle savedInstancedState){
         super.onCreate(savedInstancedState);

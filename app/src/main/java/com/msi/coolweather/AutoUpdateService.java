@@ -94,7 +94,7 @@ public class AutoUpdateService extends Service {
         }
     }
     /**
-     * 更新必应每日一图
+     * 更新必应每v日一图
      */
     private void updateBingPic() {
         String requestBingPic = "http://guolin.tech/api/bing_pic";

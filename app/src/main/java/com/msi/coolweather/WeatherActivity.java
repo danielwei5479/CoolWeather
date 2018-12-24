@@ -4,6 +4,7 @@ import android.content.SharedPreferences;
 import android.icu.util.Calendar;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -34,17 +35,20 @@ import okhttp3.Response;
 
 public class WeatherActivity extends AppCompatActivity {
 
+
+    private SwipeRefreshLayout swipeRefresh;  //上拉刷新
+
     private ScrollView weatherLayout;
-    private TextView titleCity;
-    private TextView titleUpdateTime;
-    private TextView degreeText;
-    private TextView weatherInfoText;
-    private LinearLayout forecastLayout;
-    private TextView aqiText;
+    private TextView titleCity;            //城市名称
+    private TextView titleUpdateTime;      //更新时间
+    private TextView degreeText;           //当前气温
+    private TextView weatherInfoText;      //天气信息
+    private LinearLayout forecastLayout;   //未来7天天气预报
+    private TextView aqiText;              //空气信息
     private TextView pm25Text;
-    private TextView comfortText;
-    private TextView carWashText;
-    private TextView sportText;
+    private TextView comfortText;           //建议
+    private TextView carWashText;           //建议
+    private TextView sportText;             //建议
 
     //内容显示
     private Weather weather;
@@ -52,6 +56,7 @@ public class WeatherActivity extends AppCompatActivity {
     private ImageView bingPicImg;
     //修复一些BUG
     //修复一些BUG
+    private boolean updateFlag = false;
     @Override
     protected void onCreate(Bundle savedInstancedState){
         super.onCreate(savedInstancedState);
@@ -62,21 +67,20 @@ public class WeatherActivity extends AppCompatActivity {
         String weatherString = prefs.getString("weather",null);    //天气数据
         String airString     = prefs.getString("air",null);        //空气数据
         String bingPic       = prefs.getString("pic",null);        //图片数据
-        if(weatherString != null  && air != null ){
+        final String weatherId;
+        if(weatherString != null  && airString != null ){
             //有缓存直接解析天气数据
             Weather weather = Utility.handleWeatherResponse(weatherString);
             Air air =Utility.handleAirResponse(airString);
+            weatherId = weather.basic.cid;
             showWeatherInfo(weather,air);
-            //setAir(air);
-            //setWeather(weather);
-            //showWeatherInfo();
         }else {
             //没缓存去服务器查询天气
-            String weatherId = getIntent().getStringExtra("weather_id");
-            SharedPreferences.Editor editor =PreferenceManager.getDefaultSharedPreferences(WeatherActivity.this).edit();
+            weatherId = getIntent().getStringExtra("weather_id");
             //保存查询地址的ID
-            editor.putString("weather_id",weatherId);
-            editor.apply();
+            //SharedPreferences.Editor editor =PreferenceManager.getDefaultSharedPreferences(WeatherActivity.this).edit();
+            //editor.putString("weather_id",weatherId);
+            //editor.apply();
             weatherLayout.setVisibility(View.INVISIBLE);
             requestWeather_Air(weatherId);
             //调出之前保存的数据
@@ -86,6 +90,19 @@ public class WeatherActivity extends AppCompatActivity {
             Air     air     = Utility.handleAirResponse(airString);
             showWeatherInfo(weather,air);
         }
+        swipeRefresh.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
+            @Override
+            public void onRefresh() {
+                requestWeather_Air(weatherId);
+                //调出保存的数据
+                SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(WeatherActivity.this);
+                Weather weather = Utility.handleWeatherResponse(prefs.getString("weather",null));
+                Air     air     = Utility.handleAirResponse(prefs.getString("air",null));
+                swipeRefresh.setRefreshing(false);
+                showWeatherInfo(weather,air);
+                Toast.makeText(WeatherActivity.this,"更新成功",Toast.LENGTH_SHORT).show();
+            }
+        });
         if(bingPic != null){
             Glide.with(this).load(bingPic).into(bingPicImg);
         }else {
@@ -123,10 +140,10 @@ public class WeatherActivity extends AppCompatActivity {
         });
     }
 
-    public void requestWeather_Air(final String weatherId) {
+    public boolean requestWeather_Air(final String weatherId) {
 
         String weatherUrl = "https://free-api.heweather.net/s6/weather?location="+weatherId+"&key=b6b178afc63a4f8da7ab895502a94cd9";
-        String airUrl = "https://free-api.heweather.net/s6/air/now?location=CN101010100&key=b6b178afc63a4f8da7ab895502a94cd9";
+        String airUrl = "https://free-api.heweather.net/s6/air/now?location="+weatherId+"&key=b6b178afc63a4f8da7ab895502a94cd9";
         //更新天气信息，并生成Weather对象
         HttpUtil.sendOkHttpRequest(weatherUrl, new Callback() {
             @Override
@@ -136,6 +153,7 @@ public class WeatherActivity extends AppCompatActivity {
                     @Override
                     public void run() {
                         Toast.makeText(WeatherActivity.this,"获取天气失败",Toast.LENGTH_SHORT).show();
+                        swipeRefresh.setRefreshing(false);
                     }
                 });
             }
@@ -158,6 +176,7 @@ public class WeatherActivity extends AppCompatActivity {
                     @Override
                     public void run() {
                         Toast.makeText(WeatherActivity.this, "获取AQI失败,连接失败", Toast.LENGTH_SHORT).show();
+                        swipeRefresh.setRefreshing(false);
                     }
                 });
             }
@@ -172,10 +191,15 @@ public class WeatherActivity extends AppCompatActivity {
                 }
             }
         });
+        return true;
     }
 
     private void initWidget(){
         // 初始化各控件
+
+        //下拉刷新
+        swipeRefresh = (SwipeRefreshLayout) findViewById(R.id.swipe_refresh);
+        swipeRefresh.setColorSchemeResources(R.color.colorPrimary);
         weatherLayout = (ScrollView) findViewById(R.id.weather_layout);
         titleCity = (TextView) findViewById(R.id.title_city);
         titleUpdateTime = (TextView) findViewById(R.id.title_update_time);
@@ -222,11 +246,19 @@ public class WeatherActivity extends AppCompatActivity {
         }
         weatherLayout.setVisibility(View.VISIBLE);
         //设置空气质量
-        //1.设置AQI指数
-        aqiText.setText(air.air_now_city.aqi);
-        //PM2.5指数
-        pm25Text.setText(air.air_now_city.pm25);
-
+        if(air.status.equals("ok")){
+            //1.设置AQI指数
+            aqiText.setText(air.air_now_city.aqi);
+            //PM2.5指数
+            pm25Text.setText(air.air_now_city.pm25);
+        }else{
+            //1.设置AQI指数
+            aqiText.setTextSize(20);
+            aqiText.setText("暂无数据");
+            //PM2.5指数
+            pm25Text.setTextSize(20);
+            pm25Text.setText("暂无数据");
+        }
         //设置生活建议
         for(Lifestyle lifestyle:weather.lifestyle){
             if(lifestyle.type.equals("comf")){
@@ -239,20 +271,5 @@ public class WeatherActivity extends AppCompatActivity {
                 sportText.setText("运动指数:"+lifestyle.brf+"。"+lifestyle.txt);
             }
         }
-    }
-    public Weather getWeather() {
-        return weather;
-    }
-
-    public void setWeather(Weather tmp) {
-        weather = tmp;
-    }
-
-    public Air getAir() {
-        return air;
-    }
-
-    public void setAir(Air tmp) {
-        air = tmp;
     }
 }
